@@ -1,31 +1,23 @@
-from airflow.decorators import dag
-
-from airflow.operators.weekday import BranchDayOfWeekOperator
-
-from airflow.operators.empty import EmptyOperator
-
-from airflow.utils.weekday import WeekDay
-
-import pendulum
+from datetime import datetime
+from airflow.decorators import dag, task
 
 
-@dag(schedule_interval=None, start_date=pendulum.datetime(2022, 12, 1), catchup=False)
-def branchdayofweek():
 
-    empty_task_12 = EmptyOperator(task_id="thursday_or_sunday")
+@dag(dag_id='xcom_dag_v3',start_date=datetime(2025,9,5), schedule='@daily', catchup=False)
+def xcom_dag_v3():
 
-    empty_task_22 = EmptyOperator(task_id="not_thursday_or_sunday")
+    @task
+    def task_a(ti):
+        val = 42
+        ti.xcom_push(key='my_key', value=val)
 
-    empty_task_32 = EmptyOperator(task_id="one_more_task")
+    @task
+    def task_b(ti):
+        val = ti.xcom_pull(task_ids='task_a', key='my_key')
+        print(val)
 
-    branch_weekend = BranchDayOfWeekOperator(
-        task_id="make_day_choice",
-        follow_task_ids_if_true=["thursday_or_sunday", 'one_more_task'],
-        follow_task_ids_if_false="not_thursday_or_sunday",
-        week_day={WeekDay.TUESDAY, WeekDay.SUNDAY}
-        )
-
-    branch_weekend >> [empty_task_12, empty_task_22, empty_task_32]
+    task_a() >> task_b() # type: ignore
 
 
-dag = branchdayofweek()
+xcom_dag_v3()
+
